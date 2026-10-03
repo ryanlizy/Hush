@@ -29,6 +29,9 @@ struct HushApp: App {
         // Request location permission
         locationService.requestPermission()
 
+        // Request notification permission
+        LocalNotifier.shared.requestAuthorization()
+
         // Start schedule monitoring
         scheduleService.startScheduleMonitoring()
 
@@ -46,6 +49,10 @@ struct HushApp: App {
         ) { notification in
             if let locationId = notification.object as? String {
                 activeLocationId = locationId
+                if appState.settings.notifyOnLocationEnterExit,
+                   let location = appState.locations.first(where: { $0.id.uuidString == locationId }) {
+                    LocalNotifier.shared.post(title: "Hush", body: "Entered \(location.name)")
+                }
             }
             reevaluateRules()
         }
@@ -57,6 +64,10 @@ struct HushApp: App {
         ) { notification in
             if let locationId = notification.object as? String, activeLocationId == locationId {
                 activeLocationId = nil
+                if appState.settings.notifyOnLocationEnterExit,
+                   let location = appState.locations.first(where: { $0.id.uuidString == locationId }) {
+                    LocalNotifier.shared.post(title: "Hush", body: "Left \(location.name)")
+                }
             }
             reevaluateRules()
         }

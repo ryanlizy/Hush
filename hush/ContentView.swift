@@ -86,15 +86,29 @@ struct ContentView: View {
 
                     // Active Rules
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Active Rules")
-                            .font(.headline)
+                        HStack {
+                            Text("Active Rules")
+                                .font(.headline)
+
+                            if !appState.settings.isAutomationEnabled {
+                                Spacer()
+                                Text("Automation Off")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.orange)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color.orange.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                        }
 
                         VStack(spacing: 0) {
                             RuleStatusRow(
                                 icon: "location.fill",
                                 label: "Location",
                                 value: locationService.activeLocationRule?.name ?? "No location detected",
-                                isActive: locationService.activeLocationRule != nil
+                                isActive: appState.settings.isAutomationEnabled && locationService.activeLocationRule != nil
                             )
 
                             Divider()
@@ -104,7 +118,7 @@ struct ContentView: View {
                                 icon: "clock.fill",
                                 label: "Time",
                                 value: scheduleService.activeSchedule?.name ?? "No time rule active",
-                                isActive: scheduleService.activeSchedule != nil
+                                isActive: appState.settings.isAutomationEnabled && scheduleService.activeSchedule != nil
                             )
                         }
                         .padding(.vertical, 4)
@@ -394,6 +408,7 @@ struct AddLocationView: View {
     @State private var name = ""
     @State private var latitude: Double = 37.7749
     @State private var longitude: Double = -122.4194
+    @State private var radiusInMeters: Double = 500
     @State private var volumeLevel: Double = 50
     @State private var notificationMode: NotificationMode = .normal
     @State private var showMapPicker = false
@@ -425,6 +440,13 @@ struct AddLocationView: View {
                         TextField("Latitude", value: $latitude, format: .number)
                         TextField("Longitude", value: $longitude, format: .number)
                     }
+
+                    Stepper(
+                        "Geofence Radius: \(Int(radiusInMeters))m",
+                        value: $radiusInMeters,
+                        in: 100...2000,
+                        step: 100
+                    )
                 }
 
                 Section("Audio Settings") {
@@ -453,7 +475,7 @@ struct AddLocationView: View {
                             name: name,
                             latitude: latitude,
                             longitude: longitude,
-                            radiusInMeters: appState.settings.geofenceRadiusDefault,
+                            radiusInMeters: radiusInMeters,
                             volumeLevel: Int(volumeLevel),
                             notificationMode: notificationMode
                         )
@@ -472,6 +494,9 @@ struct AddLocationView: View {
                     longitude = coordinate.longitude
                 }
             }
+            .onAppear {
+                radiusInMeters = appState.settings.geofenceRadiusDefault
+            }
         }
     }
 }
@@ -486,6 +511,7 @@ struct EditLocationView: View {
     @State private var name: String
     @State private var latitude: Double
     @State private var longitude: Double
+    @State private var radiusInMeters: Double
     @State private var volumeLevel: Double
     @State private var notificationMode: NotificationMode
     @State private var showMapPicker = false
@@ -496,6 +522,7 @@ struct EditLocationView: View {
         self._name = State(initialValue: location.name)
         self._latitude = State(initialValue: location.latitude)
         self._longitude = State(initialValue: location.longitude)
+        self._radiusInMeters = State(initialValue: location.radiusInMeters)
         self._volumeLevel = State(initialValue: Double(location.volumeLevel))
         self._notificationMode = State(initialValue: location.notificationMode)
     }
@@ -526,6 +553,13 @@ struct EditLocationView: View {
                     TextField("Latitude", value: $latitude, format: .number)
                     TextField("Longitude", value: $longitude, format: .number)
                 }
+
+                Stepper(
+                    "Geofence Radius: \(Int(radiusInMeters))m",
+                    value: $radiusInMeters,
+                    in: 100...2000,
+                    step: 100
+                )
             }
 
             Section("Audio Settings") {
@@ -555,7 +589,7 @@ struct EditLocationView: View {
                         name: name,
                         latitude: latitude,
                         longitude: longitude,
-                        radiusInMeters: original.radiusInMeters,
+                        radiusInMeters: radiusInMeters,
                         isEnabled: original.isEnabled,
                         volumeLevel: Int(volumeLevel),
                         notificationMode: notificationMode,

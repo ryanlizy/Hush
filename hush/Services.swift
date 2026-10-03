@@ -3,6 +3,34 @@ import AVFoundation
 import CoreLocation
 import Combine
 import UIKit
+import UserNotifications
+
+// MARK: - Local Notifier
+final class LocalNotifier: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = LocalNotifier()
+
+    func requestAuthorization() {
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    }
+
+    func post(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
 
 // MARK: - Audio Manager
 class AudioManager: NSObject, ObservableObject {
@@ -234,9 +262,20 @@ class RulesEngine: ObservableObject {
         let resolvedRule = resolveConflict(location: locationRule, schedule: scheduleRule, settings: settings)
 
         if let rule = resolvedRule {
+            let didChange = rule.sourceName != currentRule?.sourceName
+                || rule.volumeLevel != currentRule?.volumeLevel
+                || rule.notificationMode != currentRule?.notificationMode
+
             applyRule(rule, audioManager: audioManager)
             DispatchQueue.main.async {
                 self.currentRule = rule
+            }
+
+            if didChange && settings.notifyOnRuleChange {
+                LocalNotifier.shared.post(
+                    title: "Hush",
+                    body: "\(rule.sourceName): Volume \(rule.volumeLevel)%, \(rule.notificationMode.description)"
+                )
             }
         }
     }
